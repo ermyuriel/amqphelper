@@ -20,7 +20,7 @@ type Configuration struct {
 	Exclusive               bool
 	NoWait                  bool
 	NoLocal                 bool
-	arguments               *amqp.Table
+	arguments               amqp.Table
 }
 
 //Queue is the object defined by the Configuration object
@@ -48,7 +48,7 @@ func GetQueue(config *Configuration) (*Queue, error) {
 	if err != nil {
 		return nil, err
 	}
-	iq, err := q.channel.QueueDeclare(config.RoutingKey, config.Durable, config.DeleteIfUnused, config.Exclusive, config.NoWait, *config.arguments)
+	iq, err := q.channel.QueueDeclare(config.RoutingKey, config.Durable, config.DeleteIfUnused, config.Exclusive, config.NoWait, config.arguments)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func (q *Queue) Publish(message []byte, mandatory, immediate bool) error {
 
 // GetConsumer returns a consumer with the specified id
 func (q *Queue) GetConsumer(ConsumerID string) (<-chan amqp.Delivery, error) {
-	return q.channel.Consume(q.Config.RoutingKey, ConsumerID, q.Config.AutoAcknowledgeMessages, q.Config.Exclusive, q.Config.NoLocal, q.Config.NoWait, *q.Config.arguments)
+	return q.channel.Consume(q.Config.RoutingKey, ConsumerID, q.Config.AutoAcknowledgeMessages, q.Config.Exclusive, q.Config.NoLocal, q.Config.NoWait, q.Config.arguments)
 }
 
 //ProcessIncomingMessages initializes a consumer and processes each received message by passing it to the argument function in a separate goroutine. Queue.Wait() should be called next
