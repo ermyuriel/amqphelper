@@ -135,6 +135,7 @@ func (q *Queue) Recover() error {
 
 	iq, err := q.channel.QueueDeclare(q.Config.RoutingKey, q.Config.Durable, q.Config.DeleteIfUnused, q.Config.Exclusive, q.Config.NoWait, q.Config.arguments)
 	if err != nil {
+		log.Println("Error declaring queue")
 		return err
 	}
 	q.internalQueue = &iq
