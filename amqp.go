@@ -113,5 +113,20 @@ func (q *Queue) openChannel() error {
 
 //Recover allows for client recovery on channel errors
 func (q *Queue) Recover() error {
-	return q.openChannel()
+	var wg sync.WaitGroup
+	nq := Queue{&wg, false, nil, nil, nil, nil}
+	err := nq.connect(q.Config.Host)
+	if err != nil {
+		return err
+	}
+	err = nq.openChannel()
+	if err != nil {
+		return err
+	}
+	iq, err := nq.channel.QueueDeclare(q.Config.RoutingKey, q.Config.Durable, q.Config.DeleteIfUnused, q.Config.Exclusive, q.Config.NoWait, q.Config.arguments)
+	if err != nil {
+		return err
+	}
+	q.internalQueue = &iq
+	return nil
 }
