@@ -53,6 +53,7 @@ func GetQueue(config *Configuration) (*Queue, error) {
 		return nil, err
 	}
 	q.internalQueue = &iq
+	q.Config = config
 	return &q, nil
 }
 
