@@ -73,7 +73,6 @@ func (q *Queue) GetConsumer(ConsumerID string) (<-chan amqp.Delivery, error) {
 
 //ProcessIncomingMessages initializes a consumer and processes each received message by passing it to the argument function in a separate goroutine. Queue.Wait() should be called next
 func (q *Queue) ProcessIncomingMessages(ConsumerID string, f func(m *Message)) error {
-
 	msgs, err := q.GetConsumer(ConsumerID)
 	if err != nil {
 		return err
@@ -110,4 +109,9 @@ func (q *Queue) openChannel() error {
 	}
 	q.channel = ch
 	return nil
+}
+
+//Recover allows for client recovery on channel errors
+func (q *Queue) Recover() error {
+	return q.openChannel()
 }
