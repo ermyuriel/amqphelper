@@ -31,6 +31,7 @@ type Queue struct {
 	channel       *amqp.Channel
 	internalQueue *amqp.Queue
 	Config        *Configuration
+	worker        func(m *Message)
 }
 
 type Message struct {
@@ -40,7 +41,7 @@ type Message struct {
 //GetQueue receives Config object and returns a queue for publishing and consuming
 func GetQueue(config *Configuration) (*Queue, error) {
 	var wg sync.WaitGroup
-	q := Queue{&wg, false, nil, nil, nil, nil}
+	q := Queue{&wg, false, nil, nil, nil, nil, nil}
 	err := q.connect(config.Host)
 	if err != nil {
 		return nil, err
@@ -77,7 +78,9 @@ func (q *Queue) ProcessIncomingMessages(ConsumerID string, f func(m *Message)) e
 	if err != nil {
 		return err
 	}
+	q.worker = f
 	q.Add(1)
+
 	go func() {
 		for msg := range msgs {
 			f(&Message{&msg})
@@ -113,20 +116,30 @@ func (q *Queue) openChannel() error {
 
 //Recover allows for client recovery on channel errors
 func (q *Queue) Recover() error {
-	var wg sync.WaitGroup
-	nq := Queue{&wg, false, nil, nil, nil, nil}
-	err := nq.connect(q.Config.Host)
+
+	err := q.connection.Close()
 	if err != nil {
 		return err
 	}
-	err = nq.openChannel()
+
+	err = q.connect(q.Config.Host)
 	if err != nil {
 		return err
 	}
-	iq, err := nq.channel.QueueDeclare(q.Config.RoutingKey, q.Config.Durable, q.Config.DeleteIfUnused, q.Config.Exclusive, q.Config.NoWait, q.Config.arguments)
+	err = q.openChannel()
+	if err != nil {
+		return err
+	}
+
+	iq, err := q.channel.QueueDeclare(q.Config.RoutingKey, q.Config.Durable, q.Config.DeleteIfUnused, q.Config.Exclusive, q.Config.NoWait, q.Config.arguments)
 	if err != nil {
 		return err
 	}
 	q.internalQueue = &iq
+
+	if q.worker != nil {
+		q.Done()
+	}
+
 	return nil
 }
