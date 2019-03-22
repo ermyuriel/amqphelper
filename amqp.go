@@ -91,9 +91,6 @@ func (q *Queue) ProcessIncomingMessages(ConsumerID string, f func(m *Message)) e
 }
 
 func (q *Queue) connect(host string) error {
-	if q.Connected != false {
-		return fmt.Errorf("Error: Queue is already connected")
-	}
 	conn, err := amqp.Dial(host)
 	if err != nil {
 		return err
@@ -104,7 +101,7 @@ func (q *Queue) connect(host string) error {
 }
 
 func (q *Queue) openChannel() error {
-	if q.connection == nil {
+	if q.connection == nil || q.connection.IsClosed() {
 		return errors.New("No connection to queue")
 	}
 	ch, err := q.connection.Channel()
