@@ -3,12 +3,13 @@ package amqphelper
 import (
 	"errors"
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/streadway/amqp"
 )
 
-//Config is a configuration object of AMQP standard parameters
+//Configuration is a configuration object of AMQP standard parameters
 type Configuration struct {
 	Host                    string
 	RoutingKey              string
@@ -116,18 +117,19 @@ func (q *Queue) openChannel() error {
 
 //Recover allows for client recovery on channel errors
 func (q *Queue) Recover() error {
+	var err error
+	if !q.connection.IsClosed() {
+		log.Println("Connection was closed")
+		err = q.connect(q.Config.Host)
+	}
 
-	err := q.connection.Close()
 	if err != nil {
 		return err
 	}
 
-	err = q.connect(q.Config.Host)
-	if err != nil {
-		return err
-	}
 	err = q.openChannel()
 	if err != nil {
+		log.Println("Error reopening channel")
 		return err
 	}
 
