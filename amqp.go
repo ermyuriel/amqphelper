@@ -121,6 +121,7 @@ func (q *Queue) Recover() error {
 	}
 
 	if err != nil {
+		log.Println("Error establishing connection")
 		return err
 	}
 
