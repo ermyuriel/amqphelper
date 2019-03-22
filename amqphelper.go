@@ -1,9 +1,7 @@
 package amqphelper
 
 import (
-	"errors"
 	"fmt"
-	"log"
 	"sync"
 
 	"github.com/streadway/amqp"
@@ -43,20 +41,29 @@ type Message struct {
 func GetQueue(config *Configuration) (*Queue, error) {
 	var wg sync.WaitGroup
 	q := Queue{&wg, false, nil, nil, nil, nil, nil}
-	err := q.connect(config.Host)
+
+	conn, err := amqp.Dial(config.Host)
 	if err != nil {
 		return nil, err
 	}
-	err = q.openChannel()
+
+	q.connection = conn
+
+	ch, err := q.connection.Channel()
 	if err != nil {
 		return nil, err
 	}
+
+	q.channel = ch
+
 	iq, err := q.channel.QueueDeclare(config.RoutingKey, config.Durable, config.DeleteIfUnused, config.Exclusive, config.NoWait, config.arguments)
 	if err != nil {
 		return nil, err
 	}
+
 	q.internalQueue = &iq
 	q.Config = config
+
 	return &q, nil
 }
 
@@ -90,52 +97,27 @@ func (q *Queue) ProcessIncomingMessages(ConsumerID string, f func(m *Message)) e
 	return nil
 }
 
-func (q *Queue) connect(host string) error {
-	conn, err := amqp.Dial(host)
+//Recover allows for client recovery on channel errors
+func (q *Queue) Recover() error {
+	conn, err := amqp.Dial(q.Config.Host)
 	if err != nil {
 		return err
 	}
-	q.connection = conn
-	q.Connected = true
-	return nil
-}
 
-func (q *Queue) openChannel() error {
-	if q.connection == nil || q.connection.IsClosed() {
-		return errors.New("No connection to queue")
-	}
+	q.connection = conn
+
 	ch, err := q.connection.Channel()
 	if err != nil {
 		return err
 	}
+
 	q.channel = ch
-	return nil
-}
-
-//Recover allows for client recovery on channel errors
-func (q *Queue) Recover() error {
-	var err error
-	if !q.connection.IsClosed() {
-		log.Println("Connection was closed")
-		err = q.connect(q.Config.Host)
-	}
-
-	if err != nil {
-		log.Println("Error establishing connection")
-		return err
-	}
-
-	err = q.openChannel()
-	if err != nil {
-		log.Println("Error reopening channel")
-		return err
-	}
 
 	iq, err := q.channel.QueueDeclare(q.Config.RoutingKey, q.Config.Durable, q.Config.DeleteIfUnused, q.Config.Exclusive, q.Config.NoWait, q.Config.arguments)
 	if err != nil {
-		log.Println("Error declaring queue")
 		return err
 	}
+
 	q.internalQueue = &iq
 
 	if q.worker != nil {
