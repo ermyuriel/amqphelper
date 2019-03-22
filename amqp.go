@@ -39,7 +39,8 @@ type Message struct {
 
 //GetQueue receives Config object and returns a queue for publishing and consuming
 func GetQueue(config *Configuration) (*Queue, error) {
-	q := Queue{}
+	var wg sync.WaitGroup
+	q := Queue{&wg, false, nil, nil, nil, nil}
 	err := q.connect(config.Host)
 	if err != nil {
 		return nil, err
