@@ -55,6 +55,7 @@ func GetQueue(config *Configuration) (*Queue, error) {
 	}
 
 	q.connection = conn
+	q.Connected = true
 
 	ch, err := q.connection.Channel()
 	if err != nil {
