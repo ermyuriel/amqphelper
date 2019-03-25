@@ -40,7 +40,8 @@ type Message struct {
 //GetQueue receives Config object and returns a queue for publishing and consuming
 func GetQueue(config *Configuration) (*Queue, error) {
 	var wg sync.WaitGroup
-	q := Queue{&wg, false, nil, nil, nil, nil, nil}
+	var wk int
+	q := Queue{&wg, false, nil, nil, nil, nil, &wk}
 
 	conn, err := amqp.Dial(config.Host)
 	if err != nil {
