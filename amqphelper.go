@@ -108,11 +108,12 @@ func (q *Queue) LogErrors() {
 
 //SpawnWorkers initializes n consumers in n goroutines and processes each received message by passing it to the argument function. Queue.KeepRunnig should be called next
 func (q *Queue) SpawnWorkers(consumerPrefix string, consumers int, f func(m *Message)) error {
-	s1 := rand.NewSource(time.Now().UnixNano())
-	r1 := rand.New(s1)
+	now := time.Now().UnixNano()
+	s := rand.NewSource(now)
+	r := rand.New(s)
 	for i := 0; i < consumers; i++ {
 
-		msgs, err := q.GetConsumer(fmt.Sprintf("%s:%v:%v", consumerPrefix, time.Now().Unix(), r1.Int()))
+		msgs, err := q.GetConsumer(fmt.Sprintf("%s:%v:%v", consumerPrefix, now, r.Int()))
 		if err != nil {
 			return err
 		}
