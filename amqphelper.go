@@ -77,11 +77,11 @@ func GetQueue(config *Configuration) (*Queue, error) {
 }
 
 //Publish publishes a message to the queue, receives mandatory and immediate flags for the message
-func (q *Queue) Publish(message []byte, mandatory, immediate bool) error {
+func (q *Queue) Publish(message []byte, headers map[string]interface{}, mandatory, immediate bool) error {
 	if q.channel == nil {
 		return fmt.Errorf("Queue has not been initialized")
 	}
-	return q.channel.Publish(q.Config.Exchange, q.Config.RoutingKey, mandatory, immediate, amqp.Publishing{ContentType: q.Config.ContentType, Body: []byte(message)})
+	return q.channel.Publish(q.Config.Exchange, q.Config.RoutingKey, mandatory, immediate, amqp.Publishing{ContentType: q.Config.ContentType, ContentEncoding: q.Config.ContentEncoding, Body: []byte(message), Timestamp: time.Now(), Headers: amqp.Table{}})
 }
 
 // GetConsumer returns a consumer with the specified id
