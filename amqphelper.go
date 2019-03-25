@@ -100,13 +100,14 @@ func (q *Queue) LogErrors() {
 	go func() {
 		for err := range ech {
 			log.Println(err)
+			q.Connected = false
 		}
 		*q.workers--
 		q.wg.Done()
 	}()
 }
 
-//SpawnWorkers initializes n consumers in n goroutines and processes each received message by passing it to the argument function. Queue.KeepRunnig should be called next
+//SpawnWorkers initializes n consumers in n goroutines and processes each received message by passing it to the argument function. Queue.KeepRunning should be called next
 func (q *Queue) SpawnWorkers(consumerPrefix string, consumers int, f func(m *Message)) error {
 	now := time.Now().UnixNano()
 	for i := 0; i < consumers; i++ {
