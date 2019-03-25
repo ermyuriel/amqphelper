@@ -21,6 +21,8 @@ type Configuration struct {
 	Exclusive               bool
 	NoWait                  bool
 	NoLocal                 bool
+	PrefetchCount           int
+	PrefetchByteSize        int
 	arguments               amqp.Table
 }
 
@@ -58,6 +60,8 @@ func GetQueue(config *Configuration) (*Queue, error) {
 	}
 
 	q.channel = ch
+
+	q.channel.Qos(config.PrefetchCount, config.PrefetchByteSize, true)
 
 	iq, err := q.channel.QueueDeclare(config.RoutingKey, config.Durable, config.DeleteIfUnused, config.Exclusive, config.NoWait, config.arguments)
 	if err != nil {
@@ -111,7 +115,6 @@ func (q *Queue) SpawnWorkers(consumerPrefix string, consumers int, f func(m *Mes
 		}
 		*q.workers++
 		q.wg.Add(1)
-
 		go func() {
 			for msg := range msgs {
 				f(&Message{&msg})
