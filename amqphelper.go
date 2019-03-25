@@ -3,7 +3,6 @@ package amqphelper
 import (
 	"fmt"
 	"log"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -109,11 +108,9 @@ func (q *Queue) LogErrors() {
 //SpawnWorkers initializes n consumers in n goroutines and processes each received message by passing it to the argument function. Queue.KeepRunnig should be called next
 func (q *Queue) SpawnWorkers(consumerPrefix string, consumers int, f func(m *Message)) error {
 	now := time.Now().UnixNano()
-	s := rand.NewSource(now)
-	r := rand.New(s)
 	for i := 0; i < consumers; i++ {
 
-		msgs, err := q.GetConsumer(fmt.Sprintf("%s:%v:%v", consumerPrefix, now, r.Int()))
+		msgs, err := q.GetConsumer(fmt.Sprintf("%s:%v:%v", consumerPrefix, now, i))
 		if err != nil {
 			return err
 		}
