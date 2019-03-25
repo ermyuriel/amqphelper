@@ -37,6 +37,7 @@ type Queue struct {
 	workers       *int
 }
 
+//Message represents an element to be consumed from the queue
 type Message struct {
 	*amqp.Delivery
 }
@@ -74,7 +75,7 @@ func GetQueue(config *Configuration) (*Queue, error) {
 	return &q, nil
 }
 
-//Publish publishes a message to the queue with the initialized
+//Publish publishes a message to the queue, receives mandatory and immediate flags for the message
 func (q *Queue) Publish(message []byte, mandatory, immediate bool) error {
 	if q.channel == nil {
 		return fmt.Errorf("Queue has not been initialized")
