@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/streadway/amqp"
 )
@@ -90,10 +91,12 @@ func (q *Queue) notifyErrors() chan *amqp.Error {
 func (q *Queue) LogErrors() {
 	ech := q.notifyErrors()
 	q.wg.Add(1)
+	*q.workers++
 	go func() {
 		for err := range ech {
 			log.Println(err)
 		}
+		*q.workers--
 		q.wg.Done()
 	}()
 }
@@ -102,7 +105,7 @@ func (q *Queue) LogErrors() {
 func (q *Queue) SpawnWorkers(consumerPrefix string, consumers int, f func(m *Message)) error {
 
 	for i := 0; i < consumers; i++ {
-		msgs, err := q.GetConsumer(consumerPrefix)
+		msgs, err := q.GetConsumer(fmt.Sprintf("%s:%v", consumerPrefix, time.Now().Unix()))
 		if err != nil {
 			return err
 		}
@@ -113,6 +116,7 @@ func (q *Queue) SpawnWorkers(consumerPrefix string, consumers int, f func(m *Mes
 			for msg := range msgs {
 				f(&Message{&msg})
 			}
+			*q.workers--
 			q.wg.Done()
 		}()
 	}
