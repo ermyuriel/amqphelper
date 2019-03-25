@@ -24,13 +24,13 @@ type Configuration struct {
 
 //Queue is the object defined by the Configuration object
 type Queue struct {
-	*sync.WaitGroup
+	wg            *sync.WaitGroup
 	Connected     bool
 	connection    *amqp.Connection
 	channel       *amqp.Channel
 	internalQueue *amqp.Queue
 	Config        *Configuration
-	worker        func(m *Message)
+	workers       *int
 }
 
 type Message struct {
@@ -80,21 +80,31 @@ func (q *Queue) GetConsumer(ConsumerID string) (<-chan amqp.Delivery, error) {
 	return q.channel.Consume(q.Config.RoutingKey, ConsumerID, q.Config.AutoAcknowledgeMessages, q.Config.Exclusive, q.Config.NoLocal, q.Config.NoWait, q.Config.arguments)
 }
 
-//ProcessIncomingMessages initializes a consumer and processes each received message by passing it to the argument function in a separate goroutine. Queue.Wait() should be called next
-func (q *Queue) ProcessIncomingMessages(ConsumerID string, f func(m *Message)) error {
-	msgs, err := q.GetConsumer(ConsumerID)
-	if err != nil {
-		return err
-	}
-	q.worker = f
-	q.Add(1)
+//SpawnWorkers initializes n consumers in n goroutines and processes each received message by passing it to the argument function. Queue.KeepRunnig should be called next
+func (q *Queue) SpawnWorkers(consumerPrefix string, consumers int, f func(m *Message)) error {
 
-	go func() {
-		for msg := range msgs {
-			f(&Message{&msg})
+	for i := 0; i < consumers; i++ {
+		msgs, err := q.GetConsumer(consumerPrefix)
+		if err != nil {
+			return err
 		}
-	}()
+		*q.workers++
+		q.wg.Add(1)
+
+		go func() {
+			for msg := range msgs {
+				f(&Message{&msg})
+			}
+			q.wg.Done()
+		}()
+	}
+
 	return nil
+}
+
+//KeepRunning keeps workers running
+func (q *Queue) KeepRunning() {
+	q.wg.Wait()
 }
 
 //Recover allows for client recovery on channel errors
@@ -119,9 +129,8 @@ func (q *Queue) Recover() error {
 	}
 
 	q.internalQueue = &iq
-
-	if q.worker != nil {
-		q.Done()
+	for i := *q.workers; i >= 0; i-- {
+		q.wg.Done()
 	}
 
 	return nil
