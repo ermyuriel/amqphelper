@@ -82,7 +82,7 @@ func (q *Queue) Publish(message []byte, headers map[string]interface{}, mandator
 	if q.channel == nil {
 		return fmt.Errorf("Queue has not been initialized")
 	}
-	return q.channel.Publish(q.Config.Exchange, q.Config.RoutingKey, mandatory, immediate, amqp.Publishing{ContentType: q.Config.ContentType, ContentEncoding: q.Config.ContentEncoding, Body: []byte(message), Timestamp: time.Now(), Headers: amqp.Table{}})
+	return q.channel.Publish(q.Config.Exchange, q.Config.RoutingKey, mandatory, immediate, amqp.Publishing{ContentType: q.Config.ContentType, ContentEncoding: q.Config.ContentEncoding, Body: []byte(message), Timestamp: time.Now(), Headers: headers})
 }
 
 // GetConsumer returns a consumer with the specified id
