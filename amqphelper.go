@@ -14,6 +14,7 @@ type Configuration struct {
 	Host                    string
 	RoutingKey              string
 	ContentType             string
+	ContentEncoding         string
 	Exchange                string
 	AutoAcknowledgeMessages bool
 	Durable                 bool
