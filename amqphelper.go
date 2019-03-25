@@ -2,6 +2,7 @@ package amqphelper
 
 import (
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/streadway/amqp"
@@ -81,6 +82,22 @@ func (q *Queue) GetConsumer(ConsumerID string) (<-chan amqp.Delivery, error) {
 	return q.channel.Consume(q.Config.RoutingKey, ConsumerID, q.Config.AutoAcknowledgeMessages, q.Config.Exclusive, q.Config.NoLocal, q.Config.NoWait, q.Config.arguments)
 }
 
+func (q *Queue) notifyErrors() chan *amqp.Error {
+	return q.connection.NotifyClose(make(chan *amqp.Error))
+}
+
+//LogErrors spanws a goroutine that logs connection errors for the queue
+func (q *Queue) LogErrors() {
+	ech := q.notifyErrors()
+	q.wg.Add(1)
+	go func() {
+		for err := range ech {
+			log.Println(err)
+		}
+		q.wg.Done()
+	}()
+}
+
 //SpawnWorkers initializes n consumers in n goroutines and processes each received message by passing it to the argument function. Queue.KeepRunnig should be called next
 func (q *Queue) SpawnWorkers(consumerPrefix string, consumers int, f func(m *Message)) error {
 
@@ -103,7 +120,7 @@ func (q *Queue) SpawnWorkers(consumerPrefix string, consumers int, f func(m *Mes
 	return nil
 }
 
-//KeepRunning keeps workers running
+//KeepRunning keeps queue processes running
 func (q *Queue) KeepRunning() {
 	q.wg.Wait()
 }
