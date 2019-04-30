@@ -48,33 +48,34 @@ func GetQueue(config *Configuration) (*Queue, error) {
 	var wg sync.WaitGroup
 	var wk int
 	q := Queue{&wg, false, nil, nil, nil, nil, &wk}
-
 	conn, err := amqp.Dial(config.Host)
 	if err != nil {
 		return nil, err
 	}
-
 	q.connection = conn
 	q.Connected = true
-
 	ch, err := q.connection.Channel()
 	if err != nil {
 		return nil, err
 	}
-
 	q.channel = ch
-
 	q.channel.Qos(config.PrefetchCount, config.PrefetchByteSize, true)
-
 	iq, err := q.channel.QueueDeclare(config.RoutingKey, config.Durable, config.DeleteIfUnused, config.Exclusive, config.NoWait, config.arguments)
 	if err != nil {
 		return nil, err
 	}
 
+	err = q.bind()
+	if err != nil {
+		return nil, err
+	}
 	q.internalQueue = &iq
 	q.Config = config
-
 	return &q, nil
+}
+
+func (q *Queue) bind() error {
+	return q.channel.QueueBind(fmt.Sprintf("%v", time.Now().UnixNano()), q.Config.RoutingKey, q.Config.Exchange, q.Config.NoWait, q.Config.arguments)
 }
 
 //Publish publishes a message to the queue, receives mandatory and immediate flags for the message
@@ -113,7 +114,6 @@ func (q *Queue) LogErrors() {
 func (q *Queue) SpawnWorkers(consumerPrefix string, consumers int, f func(m *Message)) error {
 	now := time.Now().UnixNano()
 	for i := 0; i < consumers; i++ {
-
 		msgs, err := q.GetConsumer(fmt.Sprintf("%s:%v:%v", consumerPrefix, now, i))
 		if err != nil {
 			return err
@@ -128,7 +128,6 @@ func (q *Queue) SpawnWorkers(consumerPrefix string, consumers int, f func(m *Mes
 			q.wg.Done()
 		}()
 	}
-
 	return nil
 }
 
@@ -143,25 +142,19 @@ func (q *Queue) Recover() error {
 	if err != nil {
 		return err
 	}
-
 	q.connection = conn
-
 	ch, err := q.connection.Channel()
 	if err != nil {
 		return err
 	}
-
 	q.channel = ch
-
 	iq, err := q.channel.QueueDeclare(q.Config.RoutingKey, q.Config.Durable, q.Config.DeleteIfUnused, q.Config.Exclusive, q.Config.NoWait, q.Config.arguments)
 	if err != nil {
 		return err
 	}
-
 	q.internalQueue = &iq
 	for i := *q.workers; i >= 0; i-- {
 		q.wg.Done()
 	}
-
 	return nil
 }
