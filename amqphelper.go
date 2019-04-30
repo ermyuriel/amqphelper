@@ -48,6 +48,7 @@ func GetQueue(config *Configuration) (*Queue, error) {
 	var wg sync.WaitGroup
 	var wk int
 	q := Queue{&wg, false, nil, nil, nil, nil, &wk}
+	q.Config = config
 	conn, err := amqp.Dial(config.Host)
 	if err != nil {
 		return nil, err
@@ -70,12 +71,12 @@ func GetQueue(config *Configuration) (*Queue, error) {
 		return nil, err
 	}
 	q.internalQueue = &iq
-	q.Config = config
+
 	return &q, nil
 }
 
 func (q *Queue) bind() error {
-	return q.channel.QueueBind(fmt.Sprintf("%v", time.Now().UnixNano()), q.Config.RoutingKey, q.Config.Exchange, q.Config.NoWait, q.Config.arguments)
+	return q.channel.QueueBind(q.Config.RoutingKey, q.Config.RoutingKey, q.Config.Exchange, q.Config.NoWait, q.Config.arguments)
 }
 
 //Publish publishes a message to the queue, receives mandatory and immediate flags for the message
