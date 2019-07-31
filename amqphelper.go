@@ -59,17 +59,23 @@ func GetQueue(config *Configuration) (*Queue, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	q.channel = ch
 	q.channel.Qos(config.PrefetchCount, config.PrefetchByteSize, true)
+
 	iq, err := q.channel.QueueDeclare(config.RoutingKey, config.Durable, config.DeleteIfUnused, config.Exclusive, config.NoWait, config.arguments)
+
 	if err != nil {
 		return nil, err
 	}
 
-	err = q.bind()
-	if err != nil {
-		return nil, err
+	if config.Exchange != "" {
+		err = q.bind()
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	q.internalQueue = &iq
 
 	return &q, nil
