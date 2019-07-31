@@ -47,15 +47,20 @@ type Message struct {
 func GetQueue(config *Configuration) (*Queue, error) {
 	var wg sync.WaitGroup
 	var wk int
+
 	q := Queue{&wg, false, nil, nil, nil, nil, &wk}
+
 	q.Config = config
+
 	conn, err := amqp.Dial(config.Host)
 	if err != nil {
 		return nil, err
 	}
+
 	q.connection = conn
 	q.Connected = true
 	ch, err := q.connection.Channel()
+
 	if err != nil {
 		return nil, err
 	}
@@ -87,10 +92,21 @@ func (q *Queue) bind() error {
 
 //Publish publishes a message to the queue, receives mandatory and immediate flags for the message
 func (q *Queue) Publish(message []byte, headers map[string]interface{}, mandatory, immediate bool) error {
+	var err error
 	if q.channel == nil {
 		return fmt.Errorf("Queue has not been initialized")
 	}
-	return q.channel.Publish(q.Config.Exchange, q.Config.RoutingKey, mandatory, immediate, amqp.Publishing{ContentType: q.Config.ContentType, ContentEncoding: q.Config.ContentEncoding, Body: []byte(message), Timestamp: time.Now(), Headers: headers})
+	err = q.channel.Publish(q.Config.Exchange, q.Config.RoutingKey, mandatory, immediate, amqp.Publishing{ContentType: q.Config.ContentType, ContentEncoding: q.Config.ContentEncoding, Body: []byte(message), Timestamp: time.Now(), Headers: headers})
+
+	if err != nil {
+		err = q.Recover()
+		if err != nil {
+			return err
+		}
+		err = q.channel.Publish(q.Config.Exchange, q.Config.RoutingKey, mandatory, immediate, amqp.Publishing{ContentType: q.Config.ContentType, ContentEncoding: q.Config.ContentEncoding, Body: []byte(message), Timestamp: time.Now(), Headers: headers})
+	}
+
+	return err
 }
 
 // GetConsumer returns a consumer with the specified id
@@ -149,19 +165,32 @@ func (q *Queue) Recover() error {
 	if err != nil {
 		return err
 	}
+
 	q.connection = conn
+	q.Connected = true
 	ch, err := q.connection.Channel()
+
 	if err != nil {
 		return err
 	}
+
 	q.channel = ch
+	q.channel.Qos(q.Config.PrefetchCount, q.Config.PrefetchByteSize, true)
+
 	iq, err := q.channel.QueueDeclare(q.Config.RoutingKey, q.Config.Durable, q.Config.DeleteIfUnused, q.Config.Exclusive, q.Config.NoWait, q.Config.arguments)
+
 	if err != nil {
 		return err
+	}
+
+	if q.Config.Exchange != "" {
+		err = q.bind()
+		if err != nil {
+			return err
+		}
 	}
 	q.internalQueue = &iq
-	for i := *q.workers; i >= 0; i-- {
-		q.wg.Done()
-	}
+
 	return nil
+
 }
